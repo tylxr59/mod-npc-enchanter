@@ -10,7 +10,7 @@ _Ported to AzerothCore by gtao725 (https://github.com/gtao725/)_
 - Type: NPC (ID: 601015)
 - Script: npc_enchantment
 - Config: Yes
-- SQL: No
+- SQL: Yes
 
 ### Version ###
 

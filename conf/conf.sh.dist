@@ -5,5 +5,5 @@
 #
 
 DB_WORLD_CUSTOM_PATHS+=(
-    "$MOD_NPCENCHANTER_ROOT/sql/world/"
-) 
+    "$MOD_NPCENCHANTER_ROOT/data/sql/db-world/"
+)

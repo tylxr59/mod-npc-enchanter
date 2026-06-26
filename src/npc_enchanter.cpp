@@ -9,7 +9,7 @@ _This module was created for [StygianCore](https://rebrand.ly/stygiancoreproject
 - Type: NPC (ID: 601015)
 - Script: npc_enchantment
 - Config: Yes
-- SQL: No
+- SQL: Yes
 
 
 ### Version ###
@@ -74,8 +74,11 @@ static bool EnchanterEnableModule = true;
 static bool EnchanterAnnounceModule = true;
 static uint32 EnchanterNumPhrases = 3;
 static uint32 EnchanterMessageTimer = 60000;
-static uint32 EnchanterEmoteSpell = 44940;
+static uint32 EnchanterEmoteSpell = 0;
 static uint32 EnchanterEmoteCommand = 3;
+
+static constexpr uint32 ENCHANTER_MIN_MESSAGE_TIMER = 60000;
+static constexpr uint32 ENCHANTER_MAX_MESSAGE_TIMER = 300000;
 
 enum EnchantCategory : uint32
 {
@@ -529,19 +532,18 @@ public:
 
     void OnBeforeConfigLoad(bool reload) override
     {
-        if (!reload) {
-            EnchanterEnableModule = sConfigMgr->GetOption<bool>("Enchanter.Enable", 1);
-            EnchanterAnnounceModule = sConfigMgr->GetOption<bool>("Enchanter.Announce", 1);
-            EnchanterNumPhrases = sConfigMgr->GetOption<uint32>("Enchanter.NumPhrases", 3);
-            EnchanterMessageTimer = sConfigMgr->GetOption<uint32>("Enchanter.MessageTimer", 60000);
-            EnchanterEmoteSpell = sConfigMgr->GetOption<uint32>("Enchanter.EmoteSpell", 44940);
-            EnchanterEmoteCommand = sConfigMgr->GetOption<uint32>("Enchanter.EmoteCommand", 3);
+        if (reload)
+            return;
 
-            // Enforce Min/Max Time
-            if (EnchanterMessageTimer != 0)
-                if (EnchanterMessageTimer < 60000 || EnchanterMessageTimer > 300000)
-                    EnchanterMessageTimer = 60000;
-        }
+        EnchanterEnableModule = sConfigMgr->GetOption<bool>("Enchanter.Enable", 1);
+        EnchanterAnnounceModule = sConfigMgr->GetOption<bool>("Enchanter.Announce", 1);
+        EnchanterNumPhrases = sConfigMgr->GetOption<uint32>("Enchanter.NumPhrases", 3);
+        EnchanterMessageTimer = sConfigMgr->GetOption<uint32>("Enchanter.MessageTimer", ENCHANTER_MIN_MESSAGE_TIMER);
+        EnchanterEmoteSpell = sConfigMgr->GetOption<uint32>("Enchanter.EmoteSpell", 0);
+        EnchanterEmoteCommand = sConfigMgr->GetOption<uint32>("Enchanter.EmoteCommand", 3);
+
+        if (EnchanterMessageTimer != 0 && (EnchanterMessageTimer < ENCHANTER_MIN_MESSAGE_TIMER || EnchanterMessageTimer > ENCHANTER_MAX_MESSAGE_TIMER))
+            EnchanterMessageTimer = ENCHANTER_MIN_MESSAGE_TIMER;
     }
 };
 
@@ -554,9 +556,8 @@ public:
         PLAYERHOOK_ON_LOGIN
     }) {}
 
-    void OnPlayerLogin(Player* player)
+    void OnPlayerLogin(Player* player) override
     {
-        // Announce Module
         if (EnchanterAnnounceModule)
             ChatHandler(player->GetSession()).SendSysMessage("This server is running the |cff4CFF00EnchanterNPC |rmodule.");
     }
@@ -571,15 +572,9 @@ public:
 
     static std::string PickPhrase()
     {
-        std::string phrase = "";
-        uint32 PhraseNum = urand(1, EnchanterNumPhrases);
-        phrase = "EC.P" + std::to_string(PhraseNum);
-
-        if (phrase == "")
-            phrase = "ERROR! NPC Emote Text Not Found! Check the npc_enchanter.conf!";
-
-        std::string randMsg = sConfigMgr->GetOption<std::string>(phrase.c_str(), "");
-        return randMsg.c_str();
+        uint32 phraseNum = urand(1, EnchanterNumPhrases);
+        std::string phrase = "EC.P" + std::to_string(phraseNum);
+        return sConfigMgr->GetOption<std::string>(phrase.c_str(), "");
     }
 
     bool OnGossipHello(Player* player, Creature* creature) override
@@ -891,29 +886,23 @@ public:
 
         if (option->Category == CAT_RINGS)
         {
-            Enchant(player, creature, player->GetItemByPos(INVENTORY_SLOT_BAG_0, EQUIPMENT_SLOT_FINGER1), option->EnchantId, option);
-            Enchant(player, creature, player->GetItemByPos(INVENTORY_SLOT_BAG_0, EQUIPMENT_SLOT_FINGER2), option->EnchantId, option);
+            ApplyEnchantToItem(player, creature, player->GetItemByPos(INVENTORY_SLOT_BAG_0, EQUIPMENT_SLOT_FINGER1), option);
+            ApplyEnchantToItem(player, creature, player->GetItemByPos(INVENTORY_SLOT_BAG_0, EQUIPMENT_SLOT_FINGER2), option);
             player->PlayerTalkClass->SendCloseGossip();
             return;
         }
 
         Item* item = player->GetItemByPos(INVENTORY_SLOT_BAG_0, option->Slot);
-        if (!ValidateItem(player, creature, option, item))
-        {
-            player->PlayerTalkClass->SendCloseGossip();
-            return;
-        }
-
-        Enchant(player, creature, item, option->EnchantId, option);
+        ApplyEnchantToItem(player, creature, item, option);
         player->PlayerTalkClass->SendCloseGossip();
     }
 
-    static void Enchant(Player* player, Creature* creature, Item* item, uint32 enchantid, EnchantOption const* option)
+    static void ApplyEnchantToItem(Player* player, Creature* creature, Item* item, EnchantOption const* option)
     {
         if (!ValidateItem(player, creature, option, item))
             return;
 
-        if (!enchantid)
+        if (!option->EnchantId)
         {
             ChatHandler(player->GetSession()).SendNotification("Something went wrong in the code. It has been logged for developers and will be looked into, sorry for the inconvenience.");
             creature->HandleEmoteCommand(EMOTE_ONESHOT_LAUGH);
@@ -923,7 +912,7 @@ public:
         uint32 roll = urand(1, 100);
 
         item->ClearEnchantment(PERM_ENCHANTMENT_SLOT);
-        item->SetEnchantment(PERM_ENCHANTMENT_SLOT, enchantid, 0, 0);
+        item->SetEnchantment(PERM_ENCHANTMENT_SLOT, option->EnchantId, 0, 0);
 
         if (roll > 0 && roll < 33)
             ChatHandler(player->GetSession()).SendNotification("|cff00ff00Beauregard's bony finger crackles with energy when he touches |cffDA70D6{}|cff00ff00!", item->GetTemplate()->Name1);
@@ -944,7 +933,7 @@ public:
         void Reset() override
         {
             if (EnchanterMessageTimer != 0)
-                MessageTimer = urand(EnchanterMessageTimer, 300000);
+                MessageTimer = urand(EnchanterMessageTimer, ENCHANTER_MAX_MESSAGE_TIMER);
         }
 
         void UpdateAI(const uint32 diff) override
@@ -965,9 +954,10 @@ public:
                     if (EnchanterEmoteSpell != 0)
                         me->CastSpell(me, EnchanterEmoteSpell);
 
-                    MessageTimer = urand(EnchanterMessageTimer, 300000);
+                    MessageTimer = urand(EnchanterMessageTimer, ENCHANTER_MAX_MESSAGE_TIMER);
                 }
-                else { MessageTimer -= diff; }
+                else
+                    MessageTimer -= diff;
             }
         }
     };
