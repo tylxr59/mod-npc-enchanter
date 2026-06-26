@@ -803,11 +803,11 @@ public:
         item->SetEnchantment(PERM_ENCHANTMENT_SLOT, enchantid, 0, 0);
 
         if (roll > 0 && roll < 33)
-            ChatHandler(player->GetSession()).SendNotification("|cff00ff00Beauregard's bony finger crackles with energy when he touches |cffDA70D6%s|cff00ff00!", item->GetTemplate()->Name1.c_str());
+            ChatHandler(player->GetSession()).SendNotification("|cff00ff00Beauregard's bony finger crackles with energy when he touches |cffDA70D6{}|cff00ff00!", item->GetTemplate()->Name1);
         else if (roll > 33 && roll < 75)
-            ChatHandler(player->GetSession()).SendNotification("|cff00ff00Beauregard holds |cffDA70D6%s |cff00ff00up in the air and utters a strange incantation!", item->GetTemplate()->Name1.c_str());
+            ChatHandler(player->GetSession()).SendNotification("|cff00ff00Beauregard holds |cffDA70D6{} |cff00ff00up in the air and utters a strange incantation!", item->GetTemplate()->Name1);
         else
-            ChatHandler(player->GetSession()).SendNotification("|cff00ff00Beauregard concentrates deeply while waving his wand over |cffDA70D6%s|cff00ff00!", item->GetTemplate()->Name1.c_str());
+            ChatHandler(player->GetSession()).SendNotification("|cff00ff00Beauregard concentrates deeply while waving his wand over |cffDA70D6{}|cff00ff00!", item->GetTemplate()->Name1);
 
         creature->CastSpell(player, 12512);
     }
