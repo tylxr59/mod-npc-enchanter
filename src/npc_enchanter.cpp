@@ -96,6 +96,11 @@ enum EnchantCategory : uint32
     CAT_BACK = 300,
 };
 
+static constexpr uint32 ENCHANTS_PER_PAGE = 8;
+static constexpr uint32 MAIN_PAGE_ACTION_BASE = 40000;
+static constexpr uint32 CATEGORY_PAGE_ACTION_BASE = 50000;
+static constexpr uint32 CATEGORY_PAGE_ACTION_STRIDE = 100;
+
 struct EnchantCategoryInfo
 {
     uint32 Id;
@@ -582,7 +587,7 @@ public:
         if (!EnchanterEnableModule)
             return false;
 
-        AddMainMenu(player);
+        AddMainMenu(player, 0);
         player->PlayerTalkClass->SendGossipMenu(601015, creature->GetGUID());
         return true;
     }
@@ -596,14 +601,34 @@ public:
 
         if (action == CAT_BACK)
         {
-            AddMainMenu(player);
+            AddMainMenu(player, 0);
             player->PlayerTalkClass->SendGossipMenu(601015, creature->GetGUID());
+            return true;
+        }
+
+        if (IsMainPageAction(action))
+        {
+            AddMainMenu(player, action - MAIN_PAGE_ACTION_BASE);
+            player->PlayerTalkClass->SendGossipMenu(601015, creature->GetGUID());
+            return true;
+        }
+
+        if (IsCategoryPageAction(action))
+        {
+            uint32 categoryId = 0;
+            uint32 page = 0;
+            DecodeCategoryPageAction(action, categoryId, page);
+            if (EnchantCategoryInfo const* category = GetCategory(categoryId))
+                ShowEnchantMenu(player, creature, category, page);
+            else
+                player->PlayerTalkClass->SendCloseGossip();
+
             return true;
         }
 
         if (EnchantCategoryInfo const* category = GetCategory(action))
         {
-            ShowEnchantMenu(player, creature, category);
+            ShowEnchantMenu(player, creature, category, 0);
             return true;
         }
 
@@ -624,6 +649,28 @@ public:
                 return &category;
 
         return nullptr;
+    }
+
+    static bool IsMainPageAction(uint32 action)
+    {
+        return action >= MAIN_PAGE_ACTION_BASE && action < CATEGORY_PAGE_ACTION_BASE;
+    }
+
+    static uint32 EncodeCategoryPageAction(uint32 category, uint32 page)
+    {
+        return CATEGORY_PAGE_ACTION_BASE + category * CATEGORY_PAGE_ACTION_STRIDE + page;
+    }
+
+    static bool IsCategoryPageAction(uint32 action)
+    {
+        return action >= CATEGORY_PAGE_ACTION_BASE;
+    }
+
+    static void DecodeCategoryPageAction(uint32 action, uint32& category, uint32& page)
+    {
+        uint32 encoded = action - CATEGORY_PAGE_ACTION_BASE;
+        category = encoded / CATEGORY_PAGE_ACTION_STRIDE;
+        page = encoded % CATEGORY_PAGE_ACTION_STRIDE;
     }
 
     static EnchantOption const* GetEnchantOption(uint32 action)
@@ -655,12 +702,40 @@ public:
         return false;
     }
 
-    static void AddMainMenu(Player* player)
+    static uint32 CountVisibleCategories(Player* player)
     {
+        uint32 count = 0;
+        for (EnchantCategoryInfo const& category : EnchantCategories)
+            if (CanSeeCategory(player, category.Id))
+                ++count;
+
+        return count;
+    }
+
+    static void AddMainMenu(Player* player, uint32 page)
+    {
+        uint32 visibleCount = CountVisibleCategories(player);
+        uint32 maxPage = visibleCount ? (visibleCount - 1) / ENCHANTS_PER_PAGE : 0;
+        if (page > maxPage)
+            page = maxPage;
+
+        uint32 first = page * ENCHANTS_PER_PAGE;
+        uint32 last = first + ENCHANTS_PER_PAGE;
+        uint32 visibleIndex = 0;
+
         for (EnchantCategoryInfo const& category : EnchantCategories)
         {
             if (!CanSeeCategory(player, category.Id))
                 continue;
+
+            if (visibleIndex < first)
+            {
+                ++visibleIndex;
+                continue;
+            }
+
+            if (visibleIndex >= last)
+                break;
 
             std::string label = "|TInterface/ICONS/";
             label += category.Icon;
@@ -668,20 +743,62 @@ public:
             label += category.Title;
             label += "]";
             AddGossipItemFor(player, 1, label, GOSSIP_SENDER_MAIN, category.Id);
+            ++visibleIndex;
         }
+
+        if (page > 0)
+            AddGossipItemFor(player, GOSSIP_ICON_TALK, "Previous page", GOSSIP_SENDER_MAIN, MAIN_PAGE_ACTION_BASE + page - 1);
+
+        if (last < visibleCount)
+            AddGossipItemFor(player, GOSSIP_ICON_TALK, "Next page", GOSSIP_SENDER_MAIN, MAIN_PAGE_ACTION_BASE + page + 1);
     }
 
-    static void ShowEnchantMenu(Player* player, Creature* creature, EnchantCategoryInfo const* category)
+    static uint32 CountVisibleOptions(Player* player, uint32 category)
     {
+        uint32 count = 0;
+        for (EnchantOption const& option : EnchantOptions)
+            if (option.Category == category && HasRequiredSkill(player, option.RequiredSkill, option.RequiredSkillRank))
+                ++count;
+
+        return count;
+    }
+
+    static void ShowEnchantMenu(Player* player, Creature* creature, EnchantCategoryInfo const* category, uint32 page)
+    {
+        uint32 visibleCount = CountVisibleOptions(player, category->Id);
+        uint32 maxPage = visibleCount ? (visibleCount - 1) / ENCHANTS_PER_PAGE : 0;
+        if (page > maxPage)
+            page = maxPage;
+
+        uint32 first = page * ENCHANTS_PER_PAGE;
+        uint32 last = first + ENCHANTS_PER_PAGE;
+        uint32 visibleIndex = 0;
         bool added = false;
+
         for (EnchantOption const& option : EnchantOptions)
         {
             if (option.Category != category->Id || !HasRequiredSkill(player, option.RequiredSkill, option.RequiredSkillRank))
                 continue;
 
+            if (visibleIndex < first)
+            {
+                ++visibleIndex;
+                continue;
+            }
+
+            if (visibleIndex >= last)
+                break;
+
             AddGossipItemFor(player, 1, option.Label, GOSSIP_SENDER_MAIN, option.Action);
             added = true;
+            ++visibleIndex;
         }
+
+        if (page > 0)
+            AddGossipItemFor(player, GOSSIP_ICON_TALK, "Previous page", GOSSIP_SENDER_MAIN, EncodeCategoryPageAction(category->Id, page - 1));
+
+        if (last < visibleCount)
+            AddGossipItemFor(player, GOSSIP_ICON_TALK, "Next page", GOSSIP_SENDER_MAIN, EncodeCategoryPageAction(category->Id, page + 1));
 
         AddGossipItemFor(player, GOSSIP_ICON_TALK, "Back", GOSSIP_SENDER_MAIN, CAT_BACK);
         player->PlayerTalkClass->SendGossipMenu(added ? category->MenuId : 601015, creature->GetGUID());
