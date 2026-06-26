@@ -121,6 +121,7 @@ static EnchantCategoryInfo const EnchantCategories[] =
     {CAT_MAIN_WEAPON, "Inv_mace_116", "Enchant Main Weapon", 100002},
     {CAT_OFFHAND_WEAPON, "Inv_mace_116", "Enchant Offhand Weapon", 100014},
     {CAT_2H_WEAPON, "Inv_axe_113", "Enchant 2H Weapon", 100003},
+    {CAT_RINGS, "Inv_jewelry_ring_85", "Enchant Rings", 100013},
     {CAT_STAFF, "inv_staff_13", "Enchant Staff", 100015},
     {CAT_SHIELD, "Inv_shield_71", "Enchant Shield", 100004},
     {CAT_HEAD, "inv_helmet_29", "Enchant Head", 100005},
@@ -131,7 +132,6 @@ static EnchantCategoryInfo const EnchantCategories[] =
     {CAT_GLOVES, "inv_gauntlets_06", "Enchant Gloves", 100010},
     {CAT_LEGS, "inv_pants_11", "Enchant Legs", 100011},
     {CAT_BOOTS, "inv_boots_05", "Enchant Boots", 100012},
-    {CAT_RINGS, "Inv_jewelry_ring_85", "Enchant Rings", 100013},
 };
 
 static EnchantOption const EnchantOptions[] =
