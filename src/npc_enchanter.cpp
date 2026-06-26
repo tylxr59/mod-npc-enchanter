@@ -70,6 +70,12 @@ This code and content is released under the [GNU AGPL v3](https://github.com/aze
 #include "SpellAuraEffects.h"
 #include "Unit.h"
 
+static bool EnchanterEnableModule = true;
+static bool EnchanterAnnounceModule = true;
+static uint32 EnchanterNumPhrases = 3;
+static uint32 EnchanterMessageTimer = 60000;
+static uint32 EnchanterEmoteSpell = 44940;
+static uint32 EnchanterEmoteCommand = 3;
 
 enum EnchantCategory : uint32
 {
@@ -797,7 +803,7 @@ public:
             return;
         }
 
-        roll = urand(1, 100);
+        uint32 roll = urand(1, 100);
 
         item->ClearEnchantment(PERM_ENCHANTMENT_SLOT);
         item->SetEnchantment(PERM_ENCHANTMENT_SLOT, enchantid, 0, 0);
