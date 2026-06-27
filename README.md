@@ -59,6 +59,8 @@ Configuration lives in `conf/npc_enchanter.conf.dist`.
 ```ini
 Enchanter.Enable = 1
 Enchanter.Announce = 1
+Enchanter.RequireProfessionSkill = 1
+Enchanter.RequireCharacterLevel = 1
 Enchanter.MessageTimer = 60000
 Enchanter.NumPhrases = 3
 EC.P1 = "I can infuse your weapons with magical energy."
@@ -70,6 +72,8 @@ Enchanter.EmoteCommand = 3
 
 - `Enchanter.Enable`: Enables or disables the module.
 - `Enchanter.Announce`: Announces the module when players log in.
+- `Enchanter.RequireProfessionSkill`: Requires profession-only enchantments to match the player's profession skill and rank.
+- `Enchanter.RequireCharacterLevel`: Requires level-gated enchantments to match the player's character and equipped item level.
 - `Enchanter.MessageTimer`: Minimum NPC phrase/emote interval in milliseconds. Use `0` to disable. Non-zero values outside 60000 to 300000 are clamped back to 60000.
 - `Enchanter.NumPhrases`: Number of configured `EC.P#` phrases to randomly choose from. Use `0` to disable spoken phrases.
 - `EC.P#`: NPC phrase text.

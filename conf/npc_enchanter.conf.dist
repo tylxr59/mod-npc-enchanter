@@ -19,6 +19,20 @@ Enchanter.Enable = 1
 Enchanter.Announce = 1
 
 # -------------------------------------------------------------------------------------
+#  Require the profession skill and rank listed by profession-only enchantments?
+#  Enable : 1
+#  Disable: 0
+# -------------------------------------------------------------------------------------
+Enchanter.RequireProfessionSkill = 1
+
+# -------------------------------------------------------------------------------------
+#  Require the listed level for level-gated enchantments?
+#  Enable : 1
+#  Disable: 0
+# -------------------------------------------------------------------------------------
+Enchanter.RequireCharacterLevel = 1
+
+# -------------------------------------------------------------------------------------
 #  How often does the NPC emote in milliseconds?
 #  Randomly calculated within range 60000 (1 minute, minimum) to 300000 (5 minutes, maximum)
 #  Default: 60000 (1 minute, minimum)

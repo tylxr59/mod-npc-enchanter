@@ -72,6 +72,8 @@ This code and content is released under the [GNU AGPL v3](https://github.com/aze
 
 static bool EnchanterEnableModule = true;
 static bool EnchanterAnnounceModule = true;
+static bool EnchanterRequireProfessionSkill = true;
+static bool EnchanterRequireCharacterLevel = true;
 static uint32 EnchanterNumPhrases = 3;
 static uint32 EnchanterMessageTimer = 60000;
 static uint32 EnchanterEmoteSpell = 0;
@@ -537,6 +539,8 @@ public:
 
         EnchanterEnableModule = sConfigMgr->GetOption<bool>("Enchanter.Enable", 1);
         EnchanterAnnounceModule = sConfigMgr->GetOption<bool>("Enchanter.Announce", 1);
+        EnchanterRequireProfessionSkill = sConfigMgr->GetOption<bool>("Enchanter.RequireProfessionSkill", 1);
+        EnchanterRequireCharacterLevel = sConfigMgr->GetOption<bool>("Enchanter.RequireCharacterLevel", 1);
         EnchanterNumPhrases = sConfigMgr->GetOption<uint32>("Enchanter.NumPhrases", 3);
         EnchanterMessageTimer = sConfigMgr->GetOption<uint32>("Enchanter.MessageTimer", ENCHANTER_MIN_MESSAGE_TIMER);
         EnchanterEmoteSpell = sConfigMgr->GetOption<uint32>("Enchanter.EmoteSpell", 0);
@@ -679,7 +683,17 @@ public:
 
     static bool HasRequiredSkill(Player* player, uint32 skill, uint32 rank)
     {
-        return !skill || (player->HasSkill(skill) && player->GetSkillValue(skill) >= rank);
+        return !EnchanterRequireProfessionSkill || !skill || (player->HasSkill(skill) && player->GetSkillValue(skill) >= rank);
+    }
+
+    static bool HasRequiredLevel(Player* player, uint32 level)
+    {
+        return !EnchanterRequireCharacterLevel || !level || player->GetLevel() >= level;
+    }
+
+    static bool CanUseEnchant(Player* player, EnchantOption const& option)
+    {
+        return HasRequiredSkill(player, option.RequiredSkill, option.RequiredSkillRank) && HasRequiredLevel(player, option.RequiredItemLevel);
     }
 
     static bool CanSeeCategory(Player* player, uint32 category)
@@ -691,7 +705,7 @@ public:
             return false;
 
         for (EnchantOption const& option : EnchantOptions)
-            if (option.Category == category && HasRequiredSkill(player, option.RequiredSkill, option.RequiredSkillRank))
+            if (option.Category == category && CanUseEnchant(player, option))
                 return true;
 
         return false;
@@ -752,7 +766,7 @@ public:
     {
         uint32 count = 0;
         for (EnchantOption const& option : EnchantOptions)
-            if (option.Category == category && HasRequiredSkill(player, option.RequiredSkill, option.RequiredSkillRank))
+            if (option.Category == category && CanUseEnchant(player, option))
                 ++count;
 
         return count;
@@ -772,7 +786,7 @@ public:
 
         for (EnchantOption const& option : EnchantOptions)
         {
-            if (option.Category != category->Id || !HasRequiredSkill(player, option.RequiredSkill, option.RequiredSkillRank))
+            if (option.Category != category->Id || !CanUseEnchant(player, option))
                 continue;
 
             if (visibleIndex < first)
@@ -825,7 +839,7 @@ public:
             return false;
         }
 
-        if (option->RequiredItemLevel && item->GetTemplate()->ItemLevel < option->RequiredItemLevel)
+        if (EnchanterRequireCharacterLevel && option->RequiredItemLevel && item->GetTemplate()->ItemLevel < option->RequiredItemLevel)
         {
             creature->Whisper("That item is not high enough level for this enchantment.", LANG_UNIVERSAL, player);
             return false;
@@ -880,6 +894,13 @@ public:
         if (!HasRequiredSkill(player, option->RequiredSkill, option->RequiredSkillRank))
         {
             creature->Whisper("You do not have the profession skill required for this enchantment.", LANG_UNIVERSAL, player);
+            player->PlayerTalkClass->SendCloseGossip();
+            return;
+        }
+
+        if (!HasRequiredLevel(player, option->RequiredItemLevel))
+        {
+            creature->Whisper("You are not high enough level for this enchantment.", LANG_UNIVERSAL, player);
             player->PlayerTalkClass->SendCloseGossip();
             return;
         }
